@@ -11,13 +11,13 @@ import java.util.List;
 @Service
 public class AnalyzeFacade {
 
-    @Value("file.pattern.srd")
+    @Value("${file.pattern.srd}")
     private String srdFilePattern;
 
-    @Value("file.pattern.sru")
+    @Value("${file.pattern.sru}")
     private String sruFilePattern;
 
-    @Value("file.pattern.srd.custom")
+    @Value("${file.pattern.srd.custom}")
     private String srdCustomFilePattern;
 
     private AnalyzeProcessor analyzeProcessor;
