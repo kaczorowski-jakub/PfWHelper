@@ -17,6 +17,9 @@ public class AnalyzeFacade {
     @Value("file.pattern.sru")
     private String sruFilePattern;
 
+    @Value("file.pattern.srd.custom")
+    private String srdCustomFilePattern;
+
     private AnalyzeProcessor analyzeProcessor;
     private FileSearchEngine fileSearchEngine;
 
@@ -30,8 +33,9 @@ public class AnalyzeFacade {
         List<File> allFiles = fileSearchEngine.searchForFiles(path);
         List<File> srdFiles = fileSearchEngine.filterFiles(allFiles, srdFilePattern, false);
         List<File> sruFiles = fileSearchEngine.filterFiles(allFiles, sruFilePattern, false);
+        List<File> srdCustomFiles = fileSearchEngine.filterFiles(srdFiles, srdCustomFilePattern, false);
 
-        Analysis analysis = analyzeProcessor.analyze(srdFiles, sruFiles);
+        Analysis analysis = analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
 
         return new AnalysisDTO();
     }

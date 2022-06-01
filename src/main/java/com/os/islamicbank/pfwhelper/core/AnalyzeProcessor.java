@@ -5,6 +5,6 @@ import java.util.List;
 
 interface AnalyzeProcessor {
 
-     Analysis analyze(List<File> srdList, List<File> sruList);
+     Analysis analyze(List<File> srdList, List<File> sruList, List<File> srdCustomList);
 
 }
