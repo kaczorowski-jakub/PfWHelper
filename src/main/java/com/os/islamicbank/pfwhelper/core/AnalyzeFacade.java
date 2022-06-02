@@ -35,6 +35,8 @@ public class AnalyzeFacade {
         List<File> sruFiles = fileSearchEngine.filterFiles(allFiles, sruFilePattern, false);
         List<File> srdCustomFiles = fileSearchEngine.filterFiles(srdFiles, srdCustomFilePattern, false);
 
-        return analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
+        Report report = analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
+        report.setRootPath(path);
+        return report;
     }
 }

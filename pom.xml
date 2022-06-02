@@ -69,22 +69,39 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>cmd</id>
+            <properties>
+                <spring.boot.mainclass>com.os.islamicbank.pfwhelper.PfWHelperCmd</spring.boot.mainclass>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <profile>
+            <id>fx</id>
+            <properties>
+                <spring.boot.mainclass>com.os.islamicbank.pfwhelper.PfWHelperApp</spring.boot.mainclass>
+            </properties>
+        </profile>
+    </profiles>
+
+
     <build>
+        <finalName>PfWHelper</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>${spring.boot.mainclass}</mainClass>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
                             <goal>repackage</goal>
                         </goals>
-                        <configuration>
-                            <classifier>spring-boot</classifier>
-                            <mainClass>
-                                com.os.cemen.app.CemenApp
-                            </mainClass>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

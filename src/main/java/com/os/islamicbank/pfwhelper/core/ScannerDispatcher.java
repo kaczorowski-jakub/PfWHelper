@@ -52,7 +52,7 @@ class ScannerDispatcher {
 
     private List<File> getPortion(List<File> files, int portion, int filesPerThread) {
         int from = portion * filesPerThread;
-        int to = Math.mi((portion + 1) * filesPerThread) >= files.size() ? files.size() : ((portion + 1) * filesPerThread);
+        int to = ((portion + 1) * filesPerThread) >= files.size() ? files.size() : ((portion + 1) * filesPerThread);
 
         return files.subList(from, to);
     }

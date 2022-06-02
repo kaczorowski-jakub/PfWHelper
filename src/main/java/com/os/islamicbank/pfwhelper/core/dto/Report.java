@@ -1,6 +1,7 @@
 package com.os.islamicbank.pfwhelper.core.dto;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ public class Report {
     private final LocalDate date;
     private final UUID uuid;
     private final List<ReportRecordHeader> records;
+    private String rootPath;
 
     public Report() {
         date = LocalDate.now();
@@ -25,5 +27,9 @@ public class Report {
 
     public List<ReportRecordHeader> getRecords() {
         return records;
+    }
+
+    public void setRootPath(String rootPath) {
+        this.rootPath = rootPath;
     }
 }

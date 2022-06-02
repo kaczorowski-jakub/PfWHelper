@@ -1,6 +1,8 @@
 package com.os.islamicbank.pfwhelper;
 
 import com.os.islamicbank.pfwhelper.core.AnalyzeFacade;
+import com.os.islamicbank.pfwhelper.core.dto.Report;
+import com.os.islamicbank.pfwhelper.core.report.ReportFacade;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -12,10 +14,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class PfWHelperCmd implements CommandLineRunner {
 
     private final AnalyzeFacade analyzeFacade;
+    private final ReportFacade reportFacade;
 
     @Autowired
-    public PfWHelperCmd(final AnalyzeFacade analyzeFacade) {
+    public PfWHelperCmd(final AnalyzeFacade analyzeFacade, ReportFacade reportFacade) {
         this.analyzeFacade = analyzeFacade;
+        this.reportFacade =reportFacade;
     }
 
     public static void main(String[] args) {
@@ -30,6 +34,7 @@ public class PfWHelperCmd implements CommandLineRunner {
             return;
         }
 
-        analyzeFacade.analyze(args[0]);
+        Report report = analyzeFacade.analyze(args[0]);
+        reportFacade.print(report);
     }
 }
