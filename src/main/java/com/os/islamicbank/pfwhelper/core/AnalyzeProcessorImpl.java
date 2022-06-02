@@ -35,22 +35,25 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
         Report report = new Report();
 
         List<UserObjectScanResult> results = scannerDispatcher.run(userObjectFiles);
-        if (reconciliation(userObjectFiles, results)) {
+        if (reconciliationScanning(userObjectFiles, results)) {
             processResults(results, customDataWindowFiles, dataWindowFiles, report);
-        } else {
-            log.error("There is a problem with reconciliation - please review the logs for missing files");
-        }
-
-        report.getRecords().stream().forEach(header -> {
-            if (header.getFindings() > 0) {
-                log.info("An object has been found: " + header.getCustomDataWindowFile());
+            if (reconciliationProcessing(customDataWindowFiles, report)) {
+                report.getRecords().stream().forEach(header -> {
+                    if (header.getFindings() > 0) {
+                        log.info("An object has been found: " + header.getCustomDataWindowFile());
+                    }
+                });
+            } else {
+                log.error("There is a problem with reconciliation at processing level - please review the logs for missing *.srd files");
             }
-        });
+        } else {
+            log.error("There is a problem with reconciliation at scanning level - please review the logs for missing *.sru files");
+        }
 
         return report;
     }
 
-    private boolean reconciliation(List<File> userObjectFiles, List<UserObjectScanResult> results) {
+    private boolean reconciliationScanning(List<File> userObjectFiles, List<UserObjectScanResult> results) {
         for (File file : userObjectFiles) {
             boolean found = false;
             for (UserObjectScanResult result : results) {
@@ -67,6 +70,29 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
 
         if (userObjectFiles.size() != results.size()) {
             log.error("The number of user object files is not equal the number of results");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean reconciliationProcessing(List<File> customDataWindowFiles, Report report) {
+        for (File file : customDataWindowFiles) {
+            boolean found = false;
+            for (ReportRecordHeader header : report.getRecords()) {
+                if (header.getCustomDataWindowFile().getAbsolutePath().equals(file.getAbsolutePath())) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                log.error("File: " + file.getAbsolutePath() + "not processed!!!");
+                return false;
+            }
+        }
+
+
+        if (customDataWindowFiles.size() != report.getRecords().size()) {
+            log.error("The number of custom data window files is not equal the number of reported items");
             return false;
         }
         return true;

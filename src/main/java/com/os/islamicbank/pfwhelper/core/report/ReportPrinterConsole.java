@@ -8,8 +8,8 @@ import java.io.File;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-@Service
-public class ReportPrinterConsole implements ReportPrinter {
+@Service("reportPrinterConsole")
+class ReportPrinterConsole implements ReportPrinter {
 
     @Override
     public void print(Report report) {

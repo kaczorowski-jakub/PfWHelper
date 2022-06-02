@@ -18,6 +18,7 @@
     <properties>
         <javafx.version>15.0.1</javafx.version>
         <log.version>2.7</log.version>
+        <app.version>1.1</app.version>
     </properties>
 
     <dependencies>
@@ -89,7 +90,7 @@
 
 
     <build>
-        <finalName>PfWHelper</finalName>
+        <finalName>PfWHelper-${app.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
