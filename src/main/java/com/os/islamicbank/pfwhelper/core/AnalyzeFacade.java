@@ -35,7 +35,7 @@ public class AnalyzeFacade {
         List<File> sruFiles = fileSearchEngine.filterFiles(allFiles, sruFilePattern, false);
         List<File> srdCustomFiles = fileSearchEngine.filterFiles(srdFiles, srdCustomFilePattern, false);
 
-        Analysis analysis = analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
+        Report analysis = analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
 
         return new AnalysisDTO();
     }

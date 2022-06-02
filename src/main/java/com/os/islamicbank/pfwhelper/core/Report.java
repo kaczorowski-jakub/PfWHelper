@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class Report {
+class Report {
     private final LocalDate date;
     private final UUID uuid;
-    private final List<ReportRecord> records;
+    private final List<ReportRecordHeader> records;
 
     public Report() {
         date = LocalDate.now();
@@ -16,7 +16,7 @@ public class Report {
         records = new ArrayList<>();
     }
 
-    public synchronized void addRecord(ReportRecord record) {
+    public synchronized void addRecord(ReportRecordHeader record) {
         records.add(record);
     }
 }
