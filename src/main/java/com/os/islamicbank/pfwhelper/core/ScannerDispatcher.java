@@ -10,7 +10,7 @@ import java.util.List;
 
 @Component
 @Slf4j
-public class ScannerDispatcher {
+class ScannerDispatcher {
 
     @Value("${threads}")
     private int threads;
@@ -21,7 +21,7 @@ public class ScannerDispatcher {
     @Value("${globaltype.pattern}")
     private String globaltypePattern;
 
-    public List<UserObjectScanResult> run(List<File> fileList) {
+    List<UserObjectScanResult> run(List<File> fileList) {
         log.debug("scanner dispatcher run");
 
         int filesPerThread = (int) Math.ceil(((double) fileList.size()) / ((double) threads));
@@ -35,7 +35,6 @@ public class ScannerDispatcher {
             UserObjectScanner userObjectScanner = new UserObjectScanner(fileListPortion, dataobjectPattern, globaltypePattern);
             userObjectScanners[i] = userObjectScanner;
             userObjectScanner.start();
-            results = userObjectScanner.getUserObjectScanResults();
             portion++;
         }
 
@@ -53,7 +52,7 @@ public class ScannerDispatcher {
 
     private List<File> getPortion(List<File> files, int portion, int filesPerThread) {
         int from = portion * filesPerThread;
-        int to = ((portion + 1) * filesPerThread) >= files.size() ? files.size() : ((portion + 1) * filesPerThread);
+        int to = Math.mi((portion + 1) * filesPerThread) >= files.size() ? files.size() : ((portion + 1) * filesPerThread);
 
         return files.subList(from, to);
     }

@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.Scanner;
 
 @Slf4j
-public class UserObjectScanner extends Thread {
+class UserObjectScanner extends Thread {
 
     private final List<File> userObjectFiles;
     private final String dataobjectPattern;
     private final String globaltypePattern;
     private final List<UserObjectScanResult> userObjectScanResults;
 
-    public UserObjectScanner(List<File> userObjectFiles, String dataobjectPattern, String globaltypePattern) {
+    UserObjectScanner(List<File> userObjectFiles, String dataobjectPattern, String globaltypePattern) {
         this.userObjectFiles = userObjectFiles;
         this.dataobjectPattern = dataobjectPattern;
         this.globaltypePattern = globaltypePattern;
@@ -55,7 +55,7 @@ public class UserObjectScanner extends Thread {
         return userObjectScanResult;
     }
 
-    public List<UserObjectScanResult> getUserObjectScanResults() {
+    List<UserObjectScanResult> getUserObjectScanResults() {
         return userObjectScanResults;
     }
 }

@@ -1,4 +1,4 @@
-package com.os.islamicbank.pfwhelper.core;
+package com.os.islamicbank.pfwhelper.core.dto;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -13,4 +13,9 @@ public class ReportRecordHeader {
     private File customDataWindowFile;
     private ReportRecordDetail detail;
     private String status;
+    private int findings;
+
+    public void incFindings() {
+        findings++;
+    }
 }

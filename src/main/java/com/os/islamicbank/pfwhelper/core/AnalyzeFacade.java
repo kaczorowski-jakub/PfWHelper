@@ -1,6 +1,6 @@
 package com.os.islamicbank.pfwhelper.core;
 
-import com.os.islamicbank.pfwhelper.core.dto.AnalysisDTO;
+import com.os.islamicbank.pfwhelper.core.dto.Report;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,8 +20,8 @@ public class AnalyzeFacade {
     @Value("${file.pattern.srd.custom}")
     private String srdCustomFilePattern;
 
-    private AnalyzeProcessor analyzeProcessor;
-    private FileSearchEngine fileSearchEngine;
+    private final AnalyzeProcessor analyzeProcessor;
+    private final FileSearchEngine fileSearchEngine;
 
     @Autowired
     public AnalyzeFacade(final AnalyzeProcessor analyzeProcessor, final FileSearchEngine fileSearchEngine) {
@@ -29,14 +29,12 @@ public class AnalyzeFacade {
         this.fileSearchEngine = fileSearchEngine;
     }
 
-    public AnalysisDTO analyze(String path) {
+    public Report analyze(String path) {
         List<File> allFiles = fileSearchEngine.searchForFiles(path);
         List<File> srdFiles = fileSearchEngine.filterFiles(allFiles, srdFilePattern, false);
         List<File> sruFiles = fileSearchEngine.filterFiles(allFiles, sruFilePattern, false);
         List<File> srdCustomFiles = fileSearchEngine.filterFiles(srdFiles, srdCustomFilePattern, false);
 
-        Report analysis = analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
-
-        return new AnalysisDTO();
+        return analyzeProcessor.analyze(srdFiles, sruFiles, srdCustomFiles);
     }
 }

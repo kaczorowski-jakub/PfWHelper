@@ -1,11 +1,14 @@
-package com.os.islamicbank.pfwhelper.core;
+package com.os.islamicbank.pfwhelper.core.dto;
+
+import lombok.Getter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-class Report {
+@Getter
+public class Report {
     private final LocalDate date;
     private final UUID uuid;
     private final List<ReportRecordHeader> records;
@@ -18,5 +21,9 @@ class Report {
 
     public synchronized void addRecord(ReportRecordHeader record) {
         records.add(record);
+    }
+
+    public List<ReportRecordHeader> getRecords() {
+        return records;
     }
 }

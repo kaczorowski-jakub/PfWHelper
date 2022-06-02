@@ -1,43 +1,33 @@
 package com.os.islamicbank.pfwhelper.core;
 
+import com.os.islamicbank.pfwhelper.core.dto.Report;
+import com.os.islamicbank.pfwhelper.core.dto.ReportRecordDetail;
+import com.os.islamicbank.pfwhelper.core.dto.ReportRecordHeader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
 @Slf4j
 class AnalyzeProcessorImpl implements AnalyzeProcessor {
 
-    private FileSearchEngine fileSearchEngine;
-
-    @Value("${dataobject.pattern.prefix}")
-    private String dataobjectPatternPrefix;
-
-    @Value("${dataobject.pattern.postfix}")
-    private String dataobjectPatternPostfix;
-
-    @Value("${globaltype.pattern.prefix}")
-    private String globaltypePatternPrefix;
-
-    @Value("${globaltype.pattern.postfix}")
-    private String globaltypePatternPostfix;
-
     @Value("${datawindow.file.extension}")
-    private String dataWindowFileExtension;
-    @Autowired
+    private String datawindowFileExtension;
+
+    @Value("${userobject.file.extension}")
+    private String userobjectFileExtension;
+
     private ScannerDispatcher scannerDispatcher;
 
     @Autowired
-    public AnalyzeProcessorImpl(final FileSearchEngine fileSearchEngine) {
-        this.fileSearchEngine = fileSearchEngine;
+    public AnalyzeProcessorImpl(final ScannerDispatcher scannerDispatcher) {
+        this.scannerDispatcher = scannerDispatcher;
     }
 
     @Override
@@ -45,34 +35,22 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
         Report report = new Report();
 
         List<UserObjectScanResult> results = scannerDispatcher.run(userObjectFiles);
-        reconciliation(userObjectFiles, results);
-        processResults(results, customDataWindowFiles, userObjectFiles, report);
+        if (reconciliation(userObjectFiles, results)) {
+            processResults(results, customDataWindowFiles, dataWindowFiles, report);
+        } else {
+            log.error("There is a problem with reconciliation - please review the logs for missing files");
+        }
+
+        report.getRecords().stream().forEach(header -> {
+            if (header.getFindings() > 0) {
+                log.info("An object has been found: " + header.getCustomDataWindowFile());
+            }
+        });
 
         return report;
-        /*
-        Report report = new Report();
-
-        for (File customDataWindowFile : customDataWindowFiles) {
-            // here is a place to split into threads
-
-            ReportRecord reportRecord = null;
-            List<Connection> connections = findDataWindowInUserObjects(userObjectFiles, customDataWindowFile);
-            if (connections.size() > 0) {
-                processConnections(connections, userObjectFiles);
-                log.info("Connection(s) found for " + customDataWindowFile.getAbsolutePath());
-            } else {
-                reportRecord = ReportRecord.builder()
-                        .customDataWindowFile(customDataWindowFile)
-                        .connections(null)
-                        .build();
-                log.info("No Connections found for " + customDataWindowFile.getAbsolutePath());
-            }
-            report.addRecord(reportRecord);
-        }
-        return report;*/
     }
 
-    private void reconciliation(List<File> userObjectFiles, List<UserObjectScanResult> results) {
+    private boolean reconciliation(List<File> userObjectFiles, List<UserObjectScanResult> results) {
         for (File file : userObjectFiles) {
             boolean found = false;
             for (UserObjectScanResult result : results) {
@@ -83,13 +61,20 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
             }
             if (!found) {
                 log.error("File: " + file.getAbsolutePath() + "not processed!!!");
+                return false;
             }
         }
+
+        if (userObjectFiles.size() != results.size()) {
+            log.error("The number of user object files is not equal the number of results");
+            return false;
+        }
+        return true;
     }
 
-    private void processResults(List<UserObjectScanResult> results, List<File> customDataWindowFiles, List<File> userObjectFiles, Report report) {
+    private void processResults(List<UserObjectScanResult> results, List<File> customDataWindowFiles, List<File> dataWindowFiles, Report report) {
         customDataWindowFiles.forEach(customDataWindowFile -> {
-            String customDataWindow = customDataWindowFile.getName().replace(dataWindowFileExtension, "");
+            String customDataWindow = customDataWindowFile.getName().replace(datawindowFileExtension, "");
             List<UserObjectScanResult> findings = findResultByDataWindow(results, customDataWindow);
 
             if (findings.size() == 0) {
@@ -121,9 +106,28 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
                             .build();
                     rhd1.setDetail(rhd2);
 
-                    results.stream().filter(result -> {
+                    results.stream().filter(result -> result.getUserObjectFile().getName().equals(line2.getValue() + userobjectFileExtension)).forEach(result -> {
+                        Optional<UserObjectScanResult.Line> line3 = result.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.DO).findFirst();
 
+                        ReportRecordDetail rhd3 = ReportRecordDetail.builder()
+                                .file(result.getUserObjectFile())
+                                .line(line3.isPresent() ? line3.get().getLine() : "<<no dataobject>>")
+                                .object(line3.isPresent() ? line3.get().getValue() : "<<no dataobject>>")
+                                .build();
+                        rhd2.setDetail(rhd3);
+
+                        if (line3.isPresent()) {
+                            dataWindowFiles.stream()
+                                    .filter(customDataWindowFileSub -> customDataWindowFileSub.getName().equals(line3.get().getValue() + datawindowFileExtension))
+                                    .forEach(customDataWindowFileSub -> {
+                                        rhd3.addFile(customDataWindowFileSub);
+                                        main.incFindings();
+                                    });
+                        }
                     });
+                    if (rhd2.getDetail() == null) {
+                        main.setStatus(main.getStatus() + "; " + "could not find " + line2.getValue() + ".sru file");
+                    }
                 });
             }
         });
@@ -134,101 +138,4 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
             return result.getLines().stream().anyMatch(line -> line.getType() == UserObjectScanResult.LineType.DO && line.getValue().equals(value));
         }).collect(Collectors.toList());
     }
-
-    private List<ConnectionExt> processConnections(List<Connection> connections, List<File> userObjectFiles) {
-
-        List<ConnectionExt> connectionExts = new ArrayList<>();
-
-        connections.forEach(connection -> {
-            connection.getGlobalTypeLines().forEach(globalTypeLine -> {
-                String userObjectFileName = retrieveParent(globalTypeLine, ".sru");
-                File userObjectFile = findFile(userObjectFiles, userObjectFileName);
-                ConnectionExt connectionExt = new ConnectionExt(connection, userObjectFile);
-                if (userObjectFile == null) {
-                    log.error("cannot find connected file: " + userObjectFileName);
-                } else {
-                    processUserObjectFile(userObjectFile, connectionExt);
-                }
-                connectionExts.add(connectionExt);
-            });
-        });
-
-        return connectionExts;
-    }
-
-    private void processUserObjectFile(File userObjectFile, ConnectionExt connectionExt) {
-        try (Scanner reader = new Scanner(userObjectFile)) {
-            while (reader.hasNextLine()) {
-                String line = reader.nextLine();
-                if (line.matches(dataobjectPatternPrefix + ".*")) {
-                    connectionExt.addDataObjectLine(line);
-                }
-            }
-        } catch (FileNotFoundException e) {
-            log.error("[processUserObjectFile] File not found: " + userObjectFile.getAbsolutePath());
-        }
-    }
-
-    private File findFile(List<File> fileList, String fileName) {
-        for (File file : fileList) {
-            if (fileName.equals(file.getName())) {
-                return file;
-            }
-        }
-
-        return null;
-    }
-
-    private List<Connection> findDataWindowInUserObjects(List<File> userObjectFiles, File customDataWindowFile) {
-
-        List<Connection> connections = new ArrayList<>();
-        userObjectFiles.forEach(userObjectFile -> {
-            Connection connection = findDataWindowInUserObject(userObjectFile, customDataWindowFile);
-            if (connection.isCustomDataWindowFileFound()) {
-                connections.add(connection);
-            }
-        });
-
-        return connections;
-    }
-
-    private Connection findDataWindowInUserObject(File userObjectFile, File customDataWindowFile) {
-        String searchedCustomDataWindowPattern = dataobjectPatternPrefix + fileToObjectName(customDataWindowFile) + dataobjectPatternPostfix;
-        String searchedUserObjectPattern = globaltypePatternPrefix + fileToObjectName(userObjectFile) + globaltypePatternPostfix;
-
-        Connection connection = new Connection(customDataWindowFile, userObjectFile);
-
-        try (Scanner reader = new Scanner(userObjectFile)) {
-            while (reader.hasNextLine()) {
-                String line = reader.nextLine();
-                if (line.matches(searchedCustomDataWindowPattern)) {
-                    connection.addDataObjectLine(line);
-                    log.debug(customDataWindowFile.getName() + " ---> " + userObjectFile.getName() + " ---> " + line);
-                }
-                if (line.matches(searchedUserObjectPattern)) {
-                    connection.addGlobalTypeLine(line);
-                    log.debug(customDataWindowFile.getName() + " ---> " + userObjectFile.getName() + " ---> " + line);
-                }
-
-            }
-        } catch (FileNotFoundException e) {
-            log.error("[findDataWindowInUserObject] File not found: " + userObjectFile.getAbsolutePath());
-        }
-        return connection;
-    }
-
-    private String fileToObjectName(File file) {
-        return file.getName().substring(0, file.getName().indexOf("."));
-    }
-
-    private String retrieveParent(String globalTypeLine, String fileExtension) {
-        String searchItem = "from ";
-        int fromIdx = globalTypeLine.lastIndexOf(searchItem);
-        if (fromIdx > -1) {
-            return globalTypeLine.substring(fromIdx + searchItem.length()).trim() + fileExtension;
-        } else {
-            return "";
-        }
-    }
-
 }

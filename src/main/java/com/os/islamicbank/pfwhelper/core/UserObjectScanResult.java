@@ -13,12 +13,12 @@ class UserObjectScanResult {
     private final File userObjectFile;
     private final List<Line> lines;
 
-    public UserObjectScanResult(File userObjectFile) {
+    UserObjectScanResult(File userObjectFile) {
         this.userObjectFile = userObjectFile;
         this.lines = new ArrayList<>();
     }
 
-    public void addLine(String lineTxt, LineType lineType) {
+    void addLine(String lineTxt, LineType lineType) {
 
         String value = null;
         switch (lineType) {
@@ -34,11 +34,11 @@ class UserObjectScanResult {
 
     }
 
-    public File getUserObjectFile() {
+    File getUserObjectFile() {
         return userObjectFile;
     }
 
-    public List<Line> getLines() {
+    List<Line> getLines() {
         return lines;
     }
 
