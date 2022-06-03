@@ -11,8 +11,8 @@ public class ReportFacade {
     private final ReportPrinter reportPrinter;
 
     @Autowired
-    //public ReportFacade(@Qualifier("reportPrinterCSV") ReportPrinter reportPrinter) {
-    public ReportFacade(@Qualifier("reportPrinterConsole") ReportPrinter reportPrinter) {
+    public ReportFacade(@Qualifier("reportPrinterCSV") ReportPrinter reportPrinter) {
+    //public ReportFacade(@Qualifier("reportPrinterConsole") ReportPrinter reportPrinter) {
         this.reportPrinter = reportPrinter;
     }
 
