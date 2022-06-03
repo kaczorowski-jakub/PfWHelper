@@ -1,10 +1,9 @@
 package com.os.islamicbank.pfwhelper.core.report;
 
 import com.os.islamicbank.pfwhelper.core.dto.Report;
-import com.os.islamicbank.pfwhelper.core.dto.ReportRecordDetail;
+import com.os.islamicbank.pfwhelper.core.dto.ReportNewUserObject;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -14,44 +13,54 @@ class ReportPrinterConsole implements ReportPrinter {
     @Override
     public void print(Report report) {
 
-        System.out.println("UUID: " +report.getUuid());
+        System.out.println("UUID: " + report.getUuid());
         System.out.println("Date: " + report.getDate().format(DateTimeFormatter.ofPattern("dd LLLL yyyy")));
         System.out.println("Root Path: " + report.getRootPath());
         System.out.println("-----");
 
-        report.getRecords().forEach(reportRecordHeader -> {
+        report.getNewDataWindows().forEach(reportRecordHeader -> {
             System.out.println("File: " + reportRecordHeader.getCustomDataWindowFile());
-            System.out.println("No. of matches: " + reportRecordHeader.getFindings());
             System.out.println("Status: " + reportRecordHeader.getStatus());
-            printDetails(reportRecordHeader.getDetail(), 1);
+            if (reportRecordHeader.hasObjects()) {
+                printDetails(reportRecordHeader.getNewUserObjects());
+            }
             System.out.println("---");
         });
     }
 
-    private void printDetails(ReportRecordDetail detail, int level) {
-        if (detail != null) {
-            String tabs = getTabs(level);
-            System.out.println(tabs + detail.getFile().getAbsolutePath());
-            System.out.println(tabs + detail.getLine());
-            System.out.println(tabs + detail.getObject());
-            printFoundFiles(detail.getFoundFiles(), ++level);
-            printDetails(detail.getDetail(), ++level);
-        }
-    }
+    private void printDetails(List<ReportNewUserObject> reportNewUserObjects) {
+        reportNewUserObjects.forEach(reportNewUserObject -> {
+            String tabs1 = getTabs(1);
+            System.out.println(tabs1 + reportNewUserObject.getFile().getAbsolutePath());
+            System.out.println(tabs1 + "[" + reportNewUserObject.getDoObject() + "]" + reportNewUserObject.getDoLine());
+            System.out.println(tabs1 + "[" + reportNewUserObject.getGtObject() + "]" + reportNewUserObject.getGtLine());
 
-    private void printFoundFiles(List<File> files, int level) {
-        String tabs = getTabs(level);
-        if (files != null && !files.isEmpty()) {
-            files.forEach(file -> {
-                System.out.println(tabs + file.getAbsolutePath());
-            });
-        }
+            if (reportNewUserObject.hasObjects()) {
+                reportNewUserObject.getOldUserObjects().forEach(oldUserObject -> {
+                    String tabs2 = getTabs(2);
+                    System.out.println(tabs2 + oldUserObject.getFile().getAbsolutePath());
+
+                    if (oldUserObject.hasObjects()) {
+                        oldUserObject.getOldDataWindows().forEach(oldDataWindow -> {
+                            String tabs3 = getTabs(3);
+                            System.out.println(tabs3 + "[" + oldDataWindow.getDoObject() + "]" + oldDataWindow.getDoLine());
+                            if (oldDataWindow.hasFiles()) {
+                                oldDataWindow.getFiles().forEach(file -> {
+                                    String tabs4 = getTabs(4);
+                                    System.out.println(tabs4 + file.getAbsolutePath());
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
     }
 
     private String getTabs(int level) {
         String ret = "";
-        for (int i = 0 ; i < level ; i++) {
-            ret+="\t";
+        for (int i = 0; i < level; i++) {
+            ret += "\t";
         }
         return ret;
     }

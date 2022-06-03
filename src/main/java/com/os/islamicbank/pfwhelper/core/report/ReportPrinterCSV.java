@@ -1,8 +1,7 @@
 package com.os.islamicbank.pfwhelper.core.report;
 
 import com.os.islamicbank.pfwhelper.core.dto.Report;
-import com.os.islamicbank.pfwhelper.core.dto.ReportRecordDetail;
-import com.os.islamicbank.pfwhelper.core.dto.ReportRecordHeader;
+import com.os.islamicbank.pfwhelper.core.dto.ReportNewDataWindow;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ import java.util.List;
 @Service("reportPrinterCSV")
 class ReportPrinterCSV implements ReportPrinter {
 
-    private final String[] HEADERS = {"zd_new", "położenie zd_new", "zuo_new", "położenie zuo_new", "uo_old", "położenie uo_old", "d_old", "położenie d_old", "Info", "Status"};
+    private final String[] HEADERS = {"zd_new", "polozenie zd_new", "zuo_new", "polozenie zuo_new", "uo_old", "polozenie uo_old", "d_old", "polozenie d_old", "Info", "Status"};
     @Value("${datawindow.file.extension}")
     private String datawindowFileExtension;
     @Value("${userobject.file.extension}")
@@ -31,8 +30,8 @@ class ReportPrinterCSV implements ReportPrinter {
         File outputCSV = new File("output.csv");
         try (FileWriter fileWriter = new FileWriter(outputCSV)) {
             fileWriter.write(prepareLine(HEADERS));
-            for (ReportRecordHeader reportRecordHeader : report.getRecords()) {
-                List<String> lines = prepareLines(reportRecordHeader);
+            for (ReportNewDataWindow reportNewDataWindow : report.getNewDataWindows()) {
+                List<String> lines = prepareLines(reportNewDataWindow);
                 for (String line : lines) {
                     fileWriter.write(line);
                 }
@@ -42,52 +41,54 @@ class ReportPrinterCSV implements ReportPrinter {
         }
     }
 
-    private List<String> prepareLines(ReportRecordHeader reportRecordHeader) {
+    private List<String> prepareLines(ReportNewDataWindow reportNewDataWindow) {
 
         List<String> lines = new ArrayList<>();
         String recordIncomplete = "Record incomplete";
-        String status = reportRecordHeader.getStatus().replace(csvFiledSeparator, "--->");
+        String status = reportNewDataWindow.getStatus().replace(csvFiledSeparator, "--->");
 
         // level 1
-        String zdNew = getDataWindowName(reportRecordHeader.getCustomDataWindowFile());
-        String zdNewLoc = reportRecordHeader.getCustomDataWindowFile().getAbsolutePath();
+        String zdNew = getDataWindowName(reportNewDataWindow.getCustomDataWindowFile());
+        String zdNewLoc = reportNewDataWindow.getCustomDataWindowFile().getAbsolutePath();
 
-        // level 2
-        ReportRecordDetail level2 = reportRecordHeader.getDetail();
-        if (level2 == null) {
+        if (!reportNewDataWindow.hasObjects()) {
             lines.add(prepareLine(zdNew, zdNewLoc, "", "", "", "", "", "", recordIncomplete, status));
             return lines;
         }
-        String zuoNew = getUserObjectFilewName(level2.getFile());
-        String zuoNewLoc = level2.getFile().getAbsolutePath();
+        // level 2
+        reportNewDataWindow.getNewUserObjects().forEach(reportNewUserObject -> {
+            String zuoNew = getUserObjectFilewName(reportNewUserObject.getFile());
+            String zuoNewLoc = reportNewUserObject.getFile().getAbsolutePath();
 
-        // level 3
-        ReportRecordDetail level3 = level2.getDetail();
-        if (level3 == null) {
-            lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, "", "", "", "", recordIncomplete, status));
-            return lines;
-        }
-        String uoOld = level3.getObject();
+            if (!reportNewUserObject.hasObjects()) {
+                lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, "", "", "", "", recordIncomplete, status));
+                return;
+            }
+            // level 3
+            reportNewUserObject.getOldUserObjects().forEach(reportOldUserObject -> {
+                String uoOld = getUserObjectFilewName(reportOldUserObject.getFile());
+                String uoOldLoc = reportOldUserObject.getFile().getAbsolutePath();
 
-        // level 4
-        ReportRecordDetail level4 = level3.getDetail();
-        if (level4 == null) {
-            lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, "", "", "", recordIncomplete, status));
-            return lines;
-        }
-        String uoOldLoc = level4.getFile().getAbsolutePath();
-        String dOld = level4.getObject();
+                if (!reportOldUserObject.hasObjects()) {
+                    lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, uoOldLoc, "", "", recordIncomplete, status));
+                    return;
+                }
+                // level 4
+                reportOldUserObject.getOldDataWindows().forEach(reportOldDataWindow -> {
 
-        // level 5
-        List<File> foundFiles = level4.getFoundFiles();
-        if (foundFiles == null || foundFiles.isEmpty()) {
-            lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, uoOldLoc, dOld, "", recordIncomplete, status));
-            return lines;
-        }
-        foundFiles.forEach(foundFile -> {
-            lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, uoOldLoc, dOld, foundFile.getAbsolutePath(), "", ""));
+                    if (!reportOldDataWindow.hasFiles()) {
+                        lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, uoOldLoc, "", "", recordIncomplete, status));
+                        return;
+                    }
+                    // level 5
+                    reportOldDataWindow.getFiles().forEach(file -> {
+                        String dOld = getDataWindowName(file);
+                        String dOldLoc = file.getAbsolutePath();
+                        lines.add(prepareLine(zdNew, zdNewLoc, zuoNew, zuoNewLoc, uoOld, uoOldLoc, dOld, dOldLoc, "", ""));
+                    });
+                });
+            });
         });
-
         return lines;
     }
 

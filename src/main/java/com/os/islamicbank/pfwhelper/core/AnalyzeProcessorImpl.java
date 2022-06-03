@@ -1,8 +1,6 @@
 package com.os.islamicbank.pfwhelper.core;
 
-import com.os.islamicbank.pfwhelper.core.dto.Report;
-import com.os.islamicbank.pfwhelper.core.dto.ReportRecordDetail;
-import com.os.islamicbank.pfwhelper.core.dto.ReportRecordHeader;
+import com.os.islamicbank.pfwhelper.core.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -38,9 +35,9 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
         if (reconciliationScanning(userObjectFiles, results)) {
             processResults(results, customDataWindowFiles, dataWindowFiles, report);
             if (reconciliationProcessing(customDataWindowFiles, report)) {
-                report.getRecords().stream().forEach(header -> {
-                    if (header.getFindings() > 0) {
-                        log.info("An object has been found: " + header.getCustomDataWindowFile());
+                report.getNewDataWindows().stream().forEach(newDataWindow -> {
+                    if (newDataWindow.hasObjects()) {
+                        log.info("An object has been found: " + newDataWindow.getCustomDataWindowFile());
                     }
                 });
             } else {
@@ -72,14 +69,33 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
             log.error("The number of user object files is not equal the number of results");
             return false;
         }
+        /*
+        // GT line check
+        results.forEach(result -> {
+            Map<String, Integer> map = new HashMap<>();
+            result.getLines().stream().filter(line -> line.getType()== UserObjectScanResult.LineType.GT).forEach(line -> {
+                if (!map.containsKey(line.getLine())) {
+                    map.put(line.getLine(),0);
+                } else {
+                    int i = map.get(line.getLine()) + 1;
+                    map.put(line.getLine(), i);
+                }
+            });
+            map.forEach((key, value) -> {
+                if (value > 1) {
+                    System.out.println(result.getUserObjectFile().getAbsolutePath() + " ---> " + key);
+                }
+            });
+        });
+         */
         return true;
     }
 
     private boolean reconciliationProcessing(List<File> customDataWindowFiles, Report report) {
         for (File file : customDataWindowFiles) {
             boolean found = false;
-            for (ReportRecordHeader header : report.getRecords()) {
-                if (header.getCustomDataWindowFile().getAbsolutePath().equals(file.getAbsolutePath())) {
+            for (ReportNewDataWindow newDataWindow : report.getNewDataWindows()) {
+                if (newDataWindow.getCustomDataWindowFile().getAbsolutePath().equals(file.getAbsolutePath())) {
                     found = true;
                     break;
                 }
@@ -91,7 +107,7 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
         }
 
 
-        if (customDataWindowFiles.size() != report.getRecords().size()) {
+        if (customDataWindowFiles.size() != report.getNewDataWindows().size()) {
             log.error("The number of custom data window files is not equal the number of reported items");
             return false;
         }
@@ -104,55 +120,67 @@ class AnalyzeProcessorImpl implements AnalyzeProcessor {
             List<UserObjectScanResult> findings = findResultByDataWindow(results, customDataWindow);
 
             if (findings.size() == 0) {
-                report.addRecord(ReportRecordHeader.builder()
+                report.addNewDataWindow(ReportNewDataWindow.builder()
                         .status("no related *.sru file found")
                         .customDataWindowFile(customDataWindowFile)
                         .build());
             } else {
-                ReportRecordHeader main = ReportRecordHeader.builder()
+                ReportNewDataWindow reportNewDataWindow = ReportNewDataWindow.builder()
                         .status("found related *.sru file(s)")
                         .customDataWindowFile(customDataWindowFile)
                         .build();
-                report.addRecord(main);
+                report.addNewDataWindow(reportNewDataWindow);
 
+                // search for new user objects
                 findings.forEach(finding -> {
-                    UserObjectScanResult.Line line1 = finding.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.DO).findFirst().get();
-                    ReportRecordDetail rhd1 = ReportRecordDetail.builder()
+                    // it doesn't matter how many times the same dataobject="xxx" line appears in one *.sru file, it matters that it appears at least once
+                    UserObjectScanResult.Line doLine = finding.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.DO).findFirst().get();
+
+                    // search for global type * from lines - we can assume that the lines will have the same content but can occur 2 times
+                    UserObjectScanResult.Line gtLine = finding.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.GT).findFirst().get();
+
+                    ReportNewUserObject newUserObject = ReportNewUserObject.builder()
                             .file(finding.getUserObjectFile())
-                            .line(line1.getLine())
-                            .object(line1.getValue())
+                            .doLine(doLine.getLine())
+                            .doObject(doLine.getValue())
+                            .gtLine(gtLine.getLine())
+                            .gtObject(gtLine.getValue())
                             .build();
-                    main.setDetail(rhd1);
+                    reportNewDataWindow.addNewUserObject(newUserObject);
 
-                    UserObjectScanResult.Line line2 = finding.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.GT).findFirst().get();
-                    ReportRecordDetail rhd2 = ReportRecordDetail.builder()
-                            .file(finding.getUserObjectFile())
-                            .line(line2.getLine())
-                            .object(line2.getValue())
-                            .build();
-                    rhd1.setDetail(rhd2);
+                    // old user object search
+                    results.stream().filter(result -> result.getUserObjectFile().getName().equals(gtLine.getValue() + userobjectFileExtension)).forEach(result -> {
 
-                    results.stream().filter(result -> result.getUserObjectFile().getName().equals(line2.getValue() + userobjectFileExtension)).forEach(result -> {
-                        Optional<UserObjectScanResult.Line> line3 = result.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.DO).findFirst();
-
-                        ReportRecordDetail rhd3 = ReportRecordDetail.builder()
+                        ReportOldUserObject reportOldUserObject = ReportOldUserObject.builder()
                                 .file(result.getUserObjectFile())
-                                .line(line3.isPresent() ? line3.get().getLine() : "<<no dataobject>>")
-                                .object(line3.isPresent() ? line3.get().getValue() : "<<no dataobject>>")
                                 .build();
-                        rhd2.setDetail(rhd3);
+                        newUserObject.addOldUserObject(reportOldUserObject);
 
-                        if (line3.isPresent()) {
+                        result.getLines().stream().filter(line -> line.getType() == UserObjectScanResult.LineType.DO).forEach(line -> {
+                            ReportOldDataWindow reportOldDataWindow = ReportOldDataWindow.builder()
+                                    .doLine(line.getLine())
+                                    .doObject(line.getValue())
+                                    .build();
+                            reportOldUserObject.addOldDataWindow(reportOldDataWindow);
+
+                            // old data window search
                             dataWindowFiles.stream()
-                                    .filter(customDataWindowFileSub -> customDataWindowFileSub.getName().equals(line3.get().getValue() + datawindowFileExtension))
-                                    .forEach(customDataWindowFileSub -> {
-                                        rhd3.addFile(customDataWindowFileSub);
-                                        main.incFindings();
+                                    .filter(file -> file.getName().equals(line.getValue() + datawindowFileExtension))
+                                    .forEach(file -> {
+                                        reportOldDataWindow.addFile(file);
                                     });
+                            if (!reportOldDataWindow.hasFiles()) {
+                                reportNewDataWindow.setStatus(reportNewDataWindow.getStatus() + " ---> no files found for " + line.getValue());
+                            }
+                        });
+
+                        if (!reportOldUserObject.hasObjects()) {
+                            reportNewDataWindow.setStatus(reportNewDataWindow.getStatus() + " ---> no dataobjects defined in " + result.getUserObjectFile().getAbsolutePath());
                         }
+
                     });
-                    if (rhd2.getDetail() == null) {
-                        main.setStatus(main.getStatus() + "; " + "could not find " + line2.getValue() + ".sru file");
+                    if (!newUserObject.hasObjects()) {
+                        reportNewDataWindow.setStatus(reportNewDataWindow.getStatus() + " ---> could not find " + gtLine.getValue() + ".sru file");
                     }
                 });
             }
